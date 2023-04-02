@@ -86,6 +86,16 @@ var paper = new joint.dia.Paper({
   },
 });
 
+paper.on("element:pointerclick", function (elementView, evt, x, y) {
+  var boundaryTool = new joint.elementTools.Boundary();
+  var removeButton = new joint.elementTools.Remove();
+
+  var toolsView = new joint.dia.ToolsView({
+    tools: [boundaryTool, removeButton],
+  });
+
+  elementView.addTools(toolsView);
+});
 // Custom highlighter - display an outline around each element that fits its shape.
 
 var highlighter = V("path", {
