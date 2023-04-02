@@ -1,95 +1,424 @@
-let namespace = joint.shapes;
-let btnAddEntity = document.getElementById("btnAddEntity");
-let btnAddAtribute = document.getElementById("btnAddAttribute");
+var erd = joint.shapes.erd;
 
-//event listeners
-btnAddEntity.addEventListener("click", function () {
-  let rect = new joint.shapes.basic.Rect({
-    position: { x: 100, y: 100 },
-    size: { width: 100, height: 50 },
-    attrs: {
-      rect: { fill: "Red" },
-      text: { text: "Entity", fill: "white" },
-    },
-  });
-  rect.addTo(graph);
-});
+var graph = new joint.dia.Graph();
 
-btnAddAtribute.addEventListener("click", function () {
-  let rect = new joint.shapes.basic.Ellipse({
-    position: { x: 100, y: 100 },
-    size: { width: 100, height: 50 },
-    attrs: {
-      ellipse: { fill: "black" },
-      text: { text: "Attribute", fill: "white" },
-    },
-  });
-  rect.addTo(graph);
-});
-//graph
-let graph = new joint.dia.Graph({}, { cellNamespace: namespace });
-
-//paper
-let paper = new joint.dia.Paper({
-  el: document.getElementById("paper-container"),
+var paper = new joint.dia.Paper({
+  el: document.getElementById("paper"),
+  width: 695,
+  height: 600,
   model: graph,
-  width: "100%",
-  height: 968,
-  gridSize: 10,
-  drawGrid: true,
-  background: {
-    color: "rgba(0, 255, 0, 0.3)",
+  linkPinning: false,
+  highlighting: false,
+  defaultConnectionPoint: function (line, view) {
+    var element = view.model;
+    return element.getConnectionPoint(line.start) || element.getBBox().center();
   },
-  cellViewNamespace: namespace,
 });
 
-paper.on("cell:pointerdown", function (cellView, evt, x, y) {
-  console.log("cellView:", cellView);
-  console.log("evt:", evt);
-  console.log("x:", x);
-  console.log("y:", y);
-  if (!this.selectedElement) {
-    this.selectedElement = cellView.model;
-    return;
-  }
-  let link = new joint.dia.Link({
-    source: { id: this.selectedElement.id },
-    target: { id: cellView.model.id },
-    attrs: { ".marker-target": { d: "M 10 0 L 0 5 L 10 10 z" } },
+// Custom highlighter - display an outline around each element that fits its shape.
+
+var highlighter = V("path", {
+  stroke: "#e9fc03",
+  "stroke-width": "2px",
+  fill: "transparent",
+  "pointer-events": "none",
+});
+
+// Define a specific highlighting path for every shape.
+
+erd.Attribute.prototype.getHighlighterPath = function (w, h) {
+  return [
+    "M",
+    0,
+    h / 2,
+    "A",
+    w / 2,
+    h / 2,
+    "0 1,0",
+    w,
+    h / 2,
+    "A",
+    w / 2,
+    h / 2,
+    "0 1,0",
+    0,
+    h / 2,
+  ].join(" ");
+};
+
+erd.Entity.prototype.getHighlighterPath = function (w, h) {
+  return ["M", w, 0, w, h, 0, h, 0, 0, "z"].join(" ");
+};
+
+erd.Relationship.prototype.getHighlighterPath = function (w, h) {
+  return ["M", w / 2, 0, w, w / 2, w / 2, w, 0, w / 2, "z"].join(" ");
+};
+
+erd.ISA.prototype.getHighlighterPath = function (w, h) {
+  return ["M", -8, 1, w + 8, 1, w / 2, h + 2, "z"].join(" ");
+};
+
+// Define a specific connection points for every shape
+
+erd.Attribute.prototype.getConnectionPoint = function (referencePoint) {
+  // Intersection with an ellipse
+  return g.Ellipse.fromRect(
+    this.getBBox()
+  ).intersectionWithLineFromCenterToPoint(referencePoint);
+};
+
+erd.Entity.prototype.getConnectionPoint = function (referencePoint) {
+  // Intersection with a rectangle
+  return this.getBBox().intersectionWithLineFromCenterToPoint(referencePoint);
+};
+
+erd.Relationship.prototype.getConnectionPoint = function (referencePoint) {
+  // Intersection with a rhomb
+  var bbox = this.getBBox();
+  var line = new g.Line(bbox.center(), referencePoint);
+  return (
+    line.intersection(new g.Line(bbox.topMiddle(), bbox.leftMiddle())) ||
+    line.intersection(new g.Line(bbox.leftMiddle(), bbox.bottomMiddle())) ||
+    line.intersection(new g.Line(bbox.bottomMiddle(), bbox.rightMiddle())) ||
+    line.intersection(new g.Line(bbox.rightMiddle(), bbox.topMiddle()))
+  );
+};
+
+erd.ISA.prototype.getConnectionPoint = function (referencePoint) {
+  // Intersection with a triangle
+  var bbox = this.getBBox();
+  var line = new g.Line(bbox.center(), referencePoint);
+  return (
+    line.intersection(new g.Line(bbox.origin(), bbox.topRight())) ||
+    line.intersection(new g.Line(bbox.origin(), bbox.bottomMiddle())) ||
+    line.intersection(new g.Line(bbox.topRight(), bbox.bottomMiddle()))
+  );
+};
+
+// Bind custom ones.
+paper.on("cell:highlight", function (cellView) {
+  var padding = 5;
+  var bbox = cellView.getBBox({ useModelGeometry: true }).inflate(padding);
+
+  highlighter.translate(bbox.x, bbox.y, { absolute: true });
+  highlighter.attr(
+    "d",
+    cellView.model.getHighlighterPath(bbox.width, bbox.height)
+  );
+
+  V(paper.viewport).append(highlighter);
+});
+
+paper.on("cell:unhighlight", function () {
+  highlighter.remove();
+});
+
+// Create shapes
+
+var test = new erd.Entity({
+  attrs: {
+    text: {
+      text: "test",
+      magnet: true,
+    },
+  },
+});
+
+var employee = new erd.Entity({
+  position: { x: 100, y: 200 },
+  attrs: {
+    text: {
+      fill: "#ffffff",
+      text: "Employee",
+      magnet: true,
+      letterSpacing: 0,
+      magnet: true,
+      style: { textShadow: "1px 0 1px #333333" },
+    },
+    ".outer": {
+      fill: "#31d0c6",
+      stroke: "none",
+      filter: {
+        name: "dropShadow",
+        args: { dx: 0.5, dy: 2, blur: 2, color: "#333333" },
+      },
+    },
+    ".inner": {
+      fill: "#31d0c6",
+      stroke: "none",
+      filter: {
+        name: "dropShadow",
+        args: { dx: 0.5, dy: 2, blur: 2, color: "#333333" },
+      },
+    },
+  },
+  magnet: true,
+});
+
+var wage = new erd.WeakEntity({
+  position: { x: 530, y: 200 },
+  attrs: {
+    text: {
+      fill: "#ffffff",
+      text: "Wage",
+      magnet: true,
+      letterSpacing: 0,
+      style: { textShadow: "1px 0 1px #333333" },
+    },
+    ".inner": {
+      fill: "#31d0c6",
+      stroke: "none",
+      points: "155,5 155,55 5,55 5,5",
+    },
+    ".outer": {
+      fill: "none",
+      stroke: "#31d0c6",
+      points: "160,0 160,60 0,60 0,0",
+      filter: {
+        name: "dropShadow",
+        args: { dx: 0.5, dy: 2, blur: 2, color: "#333333" },
+      },
+    },
+  },
+});
+
+var paid = new erd.IdentifyingRelationship({
+  position: { x: 350, y: 190 },
+  attrs: {
+    text: {
+      fill: "#ffffff",
+      text: "Gets paid",
+      magnet: true,
+      letterSpacing: 0,
+      style: { textShadow: "1px 0 1px #333333" },
+    },
+    ".inner": {
+      fill: "#7c68fd",
+      stroke: "none",
+    },
+    ".outer": {
+      fill: "none",
+      stroke: "#7c68fd",
+      filter: {
+        name: "dropShadow",
+        args: { dx: 0, dy: 2, blur: 1, color: "#333333" },
+      },
+    },
+  },
+});
+
+var isa = new erd.ISA({
+  position: { x: 125, y: 300 },
+  attrs: {
+    text: {
+      text: "ISA",
+      fill: "#ffffff",
+      magnet: true,
+      letterSpacing: 0,
+      style: { "text-shadow": "1px 0 1px #333333" },
+    },
+    polygon: {
+      fill: "#fdb664",
+      stroke: "none",
+      filter: {
+        name: "dropShadow",
+        args: { dx: 0, dy: 2, blur: 1, color: "#333333" },
+      },
+    },
+  },
+});
+
+var number = new erd.Key({
+  position: { x: 10, y: 90 },
+  attrs: {
+    text: {
+      fill: "#ffffff",
+      text: "Number",
+      magnet: true,
+      letterSpacing: 0,
+      style: { textShadow: "1px 0 1px #333333" },
+    },
+    ".outer": {
+      fill: "#feb662",
+      stroke: "none",
+      filter: {
+        name: "dropShadow",
+        args: { dx: 0, dy: 2, blur: 2, color: "#222138" },
+      },
+    },
+    ".inner": {
+      fill: "#feb662",
+      stroke: "none",
+    },
+  },
+});
+
+var employeeName = new erd.Normal({
+  position: { x: 75, y: 30 },
+  attrs: {
+    text: {
+      fill: "#ffffff",
+      text: "Name",
+      magnet: true,
+      letterSpacing: 0,
+      style: { textShadow: "1px 0 1px #333333" },
+    },
+    ".outer": {
+      fill: "#fe8550",
+      stroke: "#fe854f",
+      filter: {
+        name: "dropShadow",
+        args: { dx: 0, dy: 2, blur: 2, color: "#222138" },
+      },
+    },
+  },
+});
+
+var skills = new erd.Multivalued({
+  position: { x: 150, y: 90 },
+  attrs: {
+    text: {
+      fill: "#ffffff",
+      text: "Skills",
+      magnet: true,
+      letterSpacing: 0,
+      style: { "text-shadow": "1px 0px 1px #333333" },
+    },
+    ".inner": {
+      fill: "#fe8550",
+      stroke: "none",
+      rx: 43,
+      ry: 21,
+    },
+    ".outer": {
+      fill: "#464a65",
+      stroke: "#fe8550",
+      filter: {
+        name: "dropShadow",
+        args: { dx: 0, dy: 2, blur: 2, color: "#222138" },
+      },
+    },
+  },
+});
+
+var amount = new erd.Derived({
+  position: { x: 440, y: 80 },
+  attrs: {
+    text: {
+      fill: "#ffffff",
+      text: "Amount",
+      magnet: true,
+      letterSpacing: 0,
+      style: { textShadow: "1px 0 1px #333333" },
+    },
+    ".inner": {
+      fill: "#fca079",
+      stroke: "none",
+      display: "block",
+    },
+    ".outer": {
+      fill: "#464a65",
+      stroke: "#fe854f",
+      "stroke-dasharray": "3,1",
+      filter: {
+        name: "dropShadow",
+        args: { dx: 0, dy: 2, blur: 2, color: "#222138" },
+      },
+    },
+  },
+});
+
+var uses = new erd.Relationship({
+  position: { x: 300, y: 390 },
+  attrs: {
+    text: {
+      fill: "#ffffff",
+      text: "Uses",
+      magnet: true,
+      letterSpacing: 0,
+      style: { textShadow: "1px 0 1px #333333" },
+    },
+    ".outer": {
+      fill: "#797d9a",
+      stroke: "none",
+      filter: {
+        name: "dropShadow",
+        args: { dx: 0, dy: 2, blur: 1, color: "#333333" },
+      },
+    },
+  },
+});
+
+// Create new shapes by cloning
+
+var salesman = employee.clone().translate(0, 200).attr("text/text", "Salesman");
+
+var date = employeeName.clone().position(585, 80).attr("text/text", "Date");
+
+var car = employee.clone().position(430, 400).attr("text/text", "Company car");
+
+var plate = number.clone().position(405, 500).attr("text/text", "Plate");
+
+// Helpers
+
+var createLink = function (elm1, elm2) {
+  var myLink = new erd.Line({
+    markup: [
+      '<path class="connection" stroke="black" d="M 0 0 0 0"/>',
+      '<path class="connection-wrap" d="M 0 0 0 0"/>',
+      '<g class="labels"/>',
+      '<g class="marker-vertices"/>',
+      '<g class="marker-arrowheads"/>',
+    ].join(""),
+    source: { id: elm1.id },
+    target: { id: elm2.id },
   });
-  graph.addCells([link]);
-  this.selectedElement = null;
-});
-//element
-let rect = new joint.shapes.standard.Rectangle();
-rect.position(100, 30);
-rect.resize(100, 40);
-rect.attr({
-  body: {
-    fill: "blue",
-  },
-  label: {
-    text: "Hello",
-    fill: "white",
-  },
-});
-rect.addTo(graph);
 
-let rect2 = rect.clone();
-rect2.translate(300, 0);
-rect2.attr("label/text", "World!");
-rect2.addTo(graph);
+  return myLink.addTo(graph);
+};
 
-let link = new joint.shapes.standard.Link();
-link.source(rect);
-link.target(rect2);
-link.addTo(graph);
+var createLabel = function (txt) {
+  return {
+    labels: [
+      {
+        position: -20,
+        attrs: {
+          text: { dy: -8, text: txt, fill: "#ffffff" },
+          rect: { fill: "none" },
+        },
+      },
+    ],
+  };
+};
 
-let newLink = new joint.shapes.standard.Link();
-newLink.source(rect2);
-newLink.target(rect);
-newLink.addTo(graph);
+// Add shapes to the graph
 
-let rect3 = rect.clone();
-rect3.translate(0, 100);
-rect3.addTo(graph);
+graph.addCells([
+  employee,
+  salesman,
+  wage,
+  paid,
+  isa,
+  number,
+  employeeName,
+  skills,
+  amount,
+  date,
+  plate,
+  car,
+  uses,
+  test,
+]);
+
+createLink(employee, paid).set(createLabel("1"));
+createLink(employee, number);
+createLink(employee, employeeName);
+createLink(employee, skills);
+createLink(employee, isa);
+createLink(isa, salesman);
+createLink(salesman, uses).set(createLabel("0..1"));
+createLink(car, uses).set(createLabel("1..1"));
+createLink(car, plate);
+createLink(wage, paid).set(createLabel("N"));
+createLink(wage, amount);
+createLink(wage, date);

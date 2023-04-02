@@ -1,18 +1,28 @@
-#my-div {
-  width: 100%;
+html,
+body {
   height: 100%;
 }
 
-#paper-container {
-  position: relative;
-  width: 100%;
-  height: 100%;
+body {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  margin: 0;
+  overflow-y: hidden;
 }
 
 #paper {
-  position: absolute;
-  top: 0;
-  left: 0;
-  bottom: 0;
-  right: 0;
+  width: inherit;
+  display: block;
+  border: 0;
+  margin-bottom: 3px;
+  text-align: center;
+  background: #464a65;
+}
+#paper > svg {
+  overflow: visible;
+}
+.connection,
+.connection-wrap {
+  stroke: #ccc0ef;
 }
