@@ -2,10 +2,81 @@ var erd = joint.shapes.erd;
 
 var graph = new joint.dia.Graph();
 
+let btnAddEntitiy = document.getElementById("btnAddEntity");
+btnAddEntitiy.addEventListener("click", function () {
+  let entity = new erd.Entity({
+    position: { x: 0, y: 0 },
+    attrs: {
+      text: {
+        fill: "#ffffff",
+        text: "Entity Dynamic",
+        magnet: true,
+        letterSpacing: 0,
+        magnet: true,
+        style: { textShadow: "1px 0 1px #333333" },
+      },
+      ".outer": {
+        fill: "#31d0c6",
+        stroke: "none",
+        filter: {
+          name: "dropShadow",
+          args: { dx: 0.5, dy: 2, blur: 2, color: "#333333" },
+        },
+      },
+      ".inner": {
+        fill: "#31d0c6",
+        stroke: "none",
+        filter: {
+          name: "dropShadow",
+          args: { dx: 0.5, dy: 2, blur: 2, color: "#333333" },
+        },
+      },
+    },
+  });
+  graph.addCell(entity);
+});
+
+let btnAddAttribute = document.getElementById("btnAddAttribute");
+btnAddAttribute.addEventListener("click", function () {
+  var newAttribute = new erd.Normal({
+    position: { x: 0, y: 0 },
+    attrs: {
+      text: {
+        fill: "#ffffff",
+        text: "Dynamic Attribute",
+        magnet: true,
+        letterSpacing: 0,
+        style: { textShadow: "1px 0 1px #333333" },
+      },
+      ".outer": {
+        fill: "#fe8550",
+        stroke: "#fe854f",
+        filter: {
+          name: "dropShadow",
+          args: { dx: 0, dy: 2, blur: 2, color: "#222138" },
+        },
+      },
+    },
+  });
+  graph.addCell(newAttribute);
+  autoSize(newAttribute);
+});
+
+function autoSize(element) {
+  console.table(element);
+  var view = paper.findViewByModel(element);
+  var textVel = view.vel.findOne("text");
+  // Use bounding box without transformations so that our auto-sizing works
+  // even on e.g. rotated element.
+  var bbox = textVel.getBBox();
+  // 16 = 2*8 which is the translation defined via ref-x ref-y for our rb element.
+  element.resize(bbox.width + 16, bbox.height + 32);
+}
+
 var paper = new joint.dia.Paper({
   el: document.getElementById("paper"),
-  width: 695,
-  height: 600,
+  width: "100%",
+  height: 968,
   model: graph,
   linkPinning: false,
   highlighting: false,
@@ -114,15 +185,6 @@ paper.on("cell:unhighlight", function () {
 });
 
 // Create shapes
-
-var test = new erd.Entity({
-  attrs: {
-    text: {
-      text: "test",
-      magnet: true,
-    },
-  },
-});
 
 var employee = new erd.Entity({
   position: { x: 100, y: 200 },
@@ -407,7 +469,6 @@ graph.addCells([
   plate,
   car,
   uses,
-  test,
 ]);
 
 createLink(employee, paid).set(createLabel("1"));
